@@ -1,0 +1,28 @@
+
+.CardButton {
+  width: 80%;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  margin-bottom: 12px;
+  font-size: 2em;
+  background-color: rgb(0, 0, 0);
+  color: rgb(255, 255, 255);
+  font-weight: 800;
+  border-radius: 8px;
+}
+
+.CardSpin {
+  animation: card-spin-transform 1 10s linear;
+  background-color:rgb(35, 141, 21);
+}
+@keyframes card-spin-transform {
+  from {
+    border: 2px solid #717c5d;
+    border-radius: 8px;
+  }
+  to {
+    outline: none;
+    border-color: #788a49;
+    box-shadow: 0 0 18px #def79c;
+  }
+}

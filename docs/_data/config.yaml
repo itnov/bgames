@@ -1,0 +1,15 @@
+social:
+  github: https://github.danieltaborda.com
+  twitter: https://twitter.danieltaborda.com
+  instagram: "https://instagram.danieltaborda.com"
+  facebook: https://facebook.danieltaborda.com
+
+nav_links:
+  - title: Home
+    url: /
+
+  - title: Social Networks
+    url: /social-networks
+
+  - title: About Me
+    url: /about-me

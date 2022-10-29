@@ -1,0 +1,24 @@
+ul {
+    padding-inline-start: 4px;
+}
+ul > li {
+    display: flex;
+    border:1px solid #000;
+    background-color:rgb(145, 187, 144);
+    margin: 4px;
+    padding: 8px;
+}
+
+a {
+	text-decoration:none;
+	color:#009;
+}
+
+a:hover {
+	background-color:rgb(156, 134, 37);
+	color:#fff;
+}
+
+.sub-menu {
+    padding-top: 2px;
+}
