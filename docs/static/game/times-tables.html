@@ -9,8 +9,10 @@
       font-family: Arial, sans-serif;
       text-align: center;
       padding: 20px;
-      background: #f0f0f0;
-      transition: background-color 0.3s;
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+      transition: background-color 0.3s, background-image 0.5s;
       margin: 0;
     }
     .hidden { display: none; }
@@ -52,6 +54,13 @@
       <option value="master">Master (all ops, 1-12)</option>
     </select>
     <br><br>
+    <label>Select operations (until hard):</label>
+    <br>
+    <label><input type="checkbox" value="+" checked>+</label>
+    <label><input type="checkbox" value="-">-</label>
+    <label><input type="checkbox" value="x" checked>x</label>
+    <label><input type="checkbox" value="/">/</label>
+    <br><br>
     <button class="btn" onclick="startGame()">Start Game</button>
   </div>
 
@@ -73,6 +82,13 @@
       maxTimeSeconds: 120
     };
 
+    const BACKGROUNDS = [
+      'https://www.publicdomainpictures.net/pictures/270000/velka/math-background.jpg',
+      'https://cdn.pixabay.com/photo/2017/10/10/21/49/mathematics-2831108_1280.jpg',
+      'https://cdn.pixabay.com/photo/2017/09/06/19/54/board-2723720_1280.jpg',
+      'https://cdn.pixabay.com/photo/2017/02/27/16/43/mathematics-2107666_1280.jpg'
+    ];
+
     const gameState = {
       currentQuestion: {},
       level: 'easy',
@@ -82,14 +98,23 @@
       timer: null,
       startTime: null,
       scoreByLevel: {},
+      resultJSON: {},
+      pauseTimer: false,
     };
 
+    function setRandomBackground() {
+      const img = BACKGROUNDS[Math.floor(Math.random() * BACKGROUNDS.length)];
+      document.body.style.backgroundImage = `url('${img}')`;
+    }
+
     function startGame() {
+      setRandomBackground();
       gameState.level = document.getElementById("level").value;
       gameState.round = 0;
       gameState.correct = 0;
       gameState.history = [];
       gameState.startTime = Date.now();
+      gameState.pauseTimer = false;
       document.getElementById("setup").classList.add("hidden");
       document.getElementById("game").classList.remove("hidden");
       document.getElementById("stats").classList.add("hidden");
@@ -99,6 +124,7 @@
     }
 
     function updateTimer() {
+      if (gameState.pauseTimer) return;
       const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
       document.getElementById("timer").innerText = `⏱ Time: ${elapsed}s / ${CONFIG.maxTimeSeconds}s`;
       if (elapsed >= CONFIG.maxTimeSeconds) {
@@ -111,8 +137,7 @@
       const level = gameState.level;
       const num1 = getRandom(level);
       const num2 = getRandom(level);
-      const operations = level === 'easy' || level === 'medium' || level === 'hard' ? ['x'] :
-                         level === 'expert' ? ['+', '-', 'x'] : ['+', '-', 'x', '/'];
+      const operations = getSelectedOperations(level);
       const op = operations[Math.floor(Math.random() * operations.length)];
 
       let correct;
@@ -132,6 +157,13 @@
       const options = generateOptions(correct);
       gameState.currentQuestion = { q: questionText, a: correct, options };
       updateQuestion();
+    }
+
+    function getSelectedOperations(level) {
+      if (['easy', 'medium', 'hard'].includes(level)) {
+        return Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+      }
+      return level === 'expert' ? ['+', '-', 'x'] : ['+', '-', 'x', '/'];
     }
 
     function generateOptions(correct) {
@@ -171,15 +203,24 @@
       if (correct) {
         gameState.correct++;
         document.getElementById("correctSound").play();
+        if (gameState.round < CONFIG.totalQuestions) {
+          setTimeout(nextQuestion, 1000);
+        } else {
+          setTimeout(endGame, 1200);
+        }
       } else {
+        gameState.pauseTimer = true;
         document.getElementById("wrongSound").play();
-      }
-      document.getElementById("feedback").innerText = correct ? "✅ Correct!" : `❌ Wrong! Correct was ${correctAns}`;
-
-      if (gameState.round < CONFIG.totalQuestions) {
-        setTimeout(nextQuestion, 1000);
-      } else {
-        setTimeout(endGame, 1200);
+        document.getElementById("feedback").innerText = `❌ Wrong! Correct was ${correctAns}`;
+        setTimeout(() => {
+          gameState.startTime += 2000; // adjust time to compensate pause
+          gameState.pauseTimer = false;
+          if (gameState.round < CONFIG.totalQuestions) {
+            nextQuestion();
+          } else {
+            endGame();
+          }
+        }, 2000);
       }
     }
 
@@ -189,10 +230,12 @@
       document.getElementById("stats").classList.remove("hidden");
       const totalTime = Math.floor((Date.now() - gameState.startTime) / 1000);
 
-      gameState.scoreByLevel[gameState.level] = {
+      gameState.resultJSON = {
+        level: gameState.level,
         correct: gameState.correct,
         total: CONFIG.totalQuestions,
-        time: totalTime
+        time: totalTime,
+        answers: gameState.history
       };
 
       let resultHTML = `<h2>🎯 Game Over</h2><p>You got ${gameState.correct} out of ${CONFIG.totalQuestions} correct in ${totalTime}s.</p><ul>`;
@@ -200,13 +243,6 @@
         resultHTML += `<li>Q${i + 1}: ${q.q} = ${q.correct}, you answered ${q.your} → ${q.result ? '✅' : '❌'}</li>`;
       });
       resultHTML += `</ul>`;
-
-      resultHTML += `<pre><code>${JSON.stringify({
-        level: gameState.level,
-        score: gameState.scoreByLevel[gameState.level],
-        answers: gameState.history
-      }, null, 2)}</code></pre>`;
-
       resultHTML += `<button class="btn" onclick="resetGame()">Play Again</button>`;
       document.getElementById("stats").innerHTML = resultHTML;
     }
@@ -215,6 +251,7 @@
       document.getElementById("setup").classList.remove("hidden");
       document.getElementById("stats").classList.add("hidden");
       document.body.className = "";
+      setRandomBackground();
     }
 
     function getRandom(level) {
@@ -222,9 +259,9 @@
         case 'easy': return Math.floor(Math.random() * 5) + 1;
         case 'medium': return Math.floor(Math.random() * 8) + 1;
         case 'hard': return Math.floor(Math.random() * 12) + 1;
-        case 'expert': case 'master': return Math.floor(Math.random() * 12) + 1;
         default: return Math.floor(Math.random() * 10) + 1;
       }
     }
   </script>
 </body>
+</html>
