@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🧠 Times Tables Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+      background: #f0f0f0;
+      transition: background-color 0.3s;
+      margin: 0;
+    }
+    .hidden { display: none; }
+    .question { font-size: 24px; margin: 20px; }
+    .btn {
+      padding: 12px;
+      font-size: 18px;
+      margin: 8px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      border-radius: 10px;
+      width: calc(45% - 16px);
+      max-width: 180px;
+      min-width: 100px;
+    }
+    .btn:hover { transform: scale(1.05); }
+    #options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+    }
+    #stats { margin-top: 30px; }
+    #timer { font-size: 20px; margin-bottom: 10px; color: #555; }
+    .correct-flash { background-color: #c8f7c5 !important; }
+    .wrong-flash { background-color: #f7c5c5 !important; }
+  </style>
+</head>
+<body>
+  <h1>🧠 Times Tables Challenge</h1>
+
+  <div id="setup">
+    <label for="level">Choose difficulty:</label>
+    <select id="level">
+      <option value="easy">Easy (1-5)</option>
+      <option value="medium">Medium (1-8)</option>
+      <option value="hard">Hard (1-12)</option>
+      <option value="expert">Expert (add, sub, mult)</option>
+      <option value="master">Master (all ops, 1-12)</option>
+    </select>
+    <br><br>
+    <button class="btn" onclick="startGame()">Start Game</button>
+  </div>
+
+  <div id="game" class="hidden">
+    <div id="timer"></div>
+    <div class="question" id="question"></div>
+    <div id="options"></div>
+    <div id="feedback"></div>
+  </div>
+
+  <div id="stats" class="hidden"></div>
+
+  <audio id="correctSound" src="https://www.soundjay.com/button/beep-07.wav"></audio>
+  <audio id="wrongSound" src="https://www.soundjay.com/button/beep-10.wav"></audio>
+
+  <script>
+    const CONFIG = {
+      totalQuestions: 10,
+      maxTimeSeconds: 120
+    };
+
+    const gameState = {
+      currentQuestion: {},
+      level: 'easy',
+      round: 0,
+      correct: 0,
+      history: [],
+      timer: null,
+      startTime: null,
+      scoreByLevel: {},
+    };
+
+    function startGame() {
+      gameState.level = document.getElementById("level").value;
+      gameState.round = 0;
+      gameState.correct = 0;
+      gameState.history = [];
+      gameState.startTime = Date.now();
+      document.getElementById("setup").classList.add("hidden");
+      document.getElementById("game").classList.remove("hidden");
+      document.getElementById("stats").classList.add("hidden");
+      updateTimer();
+      gameState.timer = setInterval(updateTimer, 1000);
+      nextQuestion();
+    }
+
+    function updateTimer() {
+      const elapsed = Math.floor((Date.now() - gameState.startTime) / 1000);
+      document.getElementById("timer").innerText = `⏱ Time: ${elapsed}s / ${CONFIG.maxTimeSeconds}s`;
+      if (elapsed >= CONFIG.maxTimeSeconds) {
+        endGame();
+      }
+    }
+
+    function nextQuestion() {
+      gameState.round++;
+      const level = gameState.level;
+      const num1 = getRandom(level);
+      const num2 = getRandom(level);
+      const operations = level === 'easy' || level === 'medium' || level === 'hard' ? ['x'] :
+                         level === 'expert' ? ['+', '-', 'x'] : ['+', '-', 'x', '/'];
+      const op = operations[Math.floor(Math.random() * operations.length)];
+
+      let correct;
+      let questionText;
+      if (op === '/') {
+        correct = num1;
+        questionText = `${num1 * num2} / ${num2}`;
+      } else {
+        questionText = `${num1} ${op} ${num2}`;
+        switch(op) {
+          case '+': correct = num1 + num2; break;
+          case '-': correct = num1 - num2; break;
+          case 'x': correct = num1 * num2; break;
+        }
+      }
+
+      const options = generateOptions(correct);
+      gameState.currentQuestion = { q: questionText, a: correct, options };
+      updateQuestion();
+    }
+
+    function generateOptions(correct) {
+      const options = new Set();
+      options.add(correct);
+      while (options.size < 5) {
+        const fake = correct + Math.floor(Math.random() * 10 - 5);
+        if (fake !== correct && fake >= 0) options.add(fake);
+      }
+      return Array.from(options).sort(() => Math.random() - 0.5);
+    }
+
+    function updateQuestion() {
+      document.getElementById("question").innerText = `Question ${gameState.round}: ` + gameState.currentQuestion.q;
+      document.getElementById("options").innerHTML = '';
+      document.getElementById("feedback").innerText = '';
+      gameState.currentQuestion.options.forEach(option => {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.innerText = option;
+        btn.onclick = () => submitAnswer(option);
+        document.getElementById("options").appendChild(btn);
+      });
+    }
+
+    function flashBackground(correct) {
+      const cls = correct ? 'correct-flash' : 'wrong-flash';
+      document.body.classList.add(cls);
+      setTimeout(() => document.body.classList.remove(cls), 400);
+    }
+
+    function submitAnswer(userAns) {
+      const correctAns = gameState.currentQuestion.a;
+      const correct = Math.abs(userAns - correctAns) < 0.001;
+      flashBackground(correct);
+      gameState.history.push({ q: gameState.currentQuestion.q, your: userAns, correct: correctAns, result: correct });
+      if (correct) {
+        gameState.correct++;
+        document.getElementById("correctSound").play();
+      } else {
+        document.getElementById("wrongSound").play();
+      }
+      document.getElementById("feedback").innerText = correct ? "✅ Correct!" : `❌ Wrong! Correct was ${correctAns}`;
+
+      if (gameState.round < CONFIG.totalQuestions) {
+        setTimeout(nextQuestion, 1000);
+      } else {
+        setTimeout(endGame, 1200);
+      }
+    }
+
+    function endGame() {
+      clearInterval(gameState.timer);
+      document.getElementById("game").classList.add("hidden");
+      document.getElementById("stats").classList.remove("hidden");
+      const totalTime = Math.floor((Date.now() - gameState.startTime) / 1000);
+
+      gameState.scoreByLevel[gameState.level] = {
+        correct: gameState.correct,
+        total: CONFIG.totalQuestions,
+        time: totalTime
+      };
+
+      let resultHTML = `<h2>🎯 Game Over</h2><p>You got ${gameState.correct} out of ${CONFIG.totalQuestions} correct in ${totalTime}s.</p><ul>`;
+      gameState.history.forEach((q, i) => {
+        resultHTML += `<li>Q${i + 1}: ${q.q} = ${q.correct}, you answered ${q.your} → ${q.result ? '✅' : '❌'}</li>`;
+      });
+      resultHTML += `</ul>`;
+
+      resultHTML += `<pre><code>${JSON.stringify({
+        level: gameState.level,
+        score: gameState.scoreByLevel[gameState.level],
+        answers: gameState.history
+      }, null, 2)}</code></pre>`;
+
+      resultHTML += `<button class="btn" onclick="resetGame()">Play Again</button>`;
+      document.getElementById("stats").innerHTML = resultHTML;
+    }
+
+    function resetGame() {
+      document.getElementById("setup").classList.remove("hidden");
+      document.getElementById("stats").classList.add("hidden");
+      document.body.className = "";
+    }
+
+    function getRandom(level) {
+      switch(level) {
+        case 'easy': return Math.floor(Math.random() * 5) + 1;
+        case 'medium': return Math.floor(Math.random() * 8) + 1;
+        case 'hard': return Math.floor(Math.random() * 12) + 1;
+        case 'expert': case 'master': return Math.floor(Math.random() * 12) + 1;
+        default: return Math.floor(Math.random() * 10) + 1;
+      }
+    }
+  </script>
+</body>
